@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具列表 - MCP Web 智能助手</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tools.css">
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">🛠️ 工具列表</h1>
+                <div class="header-actions">
+                    <a href="index.html" class="btn btn-primary">返回聊天</a>
+                </div>
+            </div>
+        </header>
+
+        <main class="tools-container">
+            <a href="index.html" class="back-link">
+                ← 返回聊天界面
+            </a>
+
+            <div id="toolsList">
+                <div class="loading-container">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+                    正在加载工具列表...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 加载工具列表
+        async function loadTools() {
+            try {
+                // 确保配置已加载
+                if (!window.configManager.isLoaded) {
+                    await window.configManager.loadConfig();
+                }
+                
+                // 获取API地址 - 添加时间戳防止缓存
+                const timestamp = new Date().getTime();
+                const apiUrl = window.configManager.getFullApiUrl('/api/tools') + '?t=' + timestamp;
+                console.log('🔗 正在请求工具列表:', apiUrl);
+                
+                // 添加无缓存头
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayTools(result.data);
+                } else {
+                    showError('加载工具列表失败');
+                }
+            } catch (error) {
+                console.error('加载工具失败:', error);
+                showError('无法连接到服务器，请检查配置文件中的后端地址');
+            }
+        }
+        
+        function displayTools(data) {
+            const toolsList = document.getElementById('toolsList');
+            
+            if (!data.servers || Object.keys(data.servers).length === 0) {
+                toolsList.innerHTML = `
+                    <div class="error-container">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+                        <h2>暂无可用工具</h2>
+                        <p>请检查 MCP 服务器配置</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 构建页面内容
+            let html = `
+                <div class="stats-summary">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number">${data.total_tools || 0}</span>
+                            <div class="stat-label">总工具数</div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${data.server_count || 0}</span>
+                            <div class="stat-label">MCP 服务器</div>
+                        </div>
+                        <div class="stat-item">
+                            <button onclick="toggleAllServerGroups()" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: #e2e8f0; color: #2d3748; cursor: pointer; font-size: 0.875rem; transition: all 0.2s ease;">
+                                <span id="toggle-all-text">全部折叠</span>
+                            </button>
+                            <div class="stat-label">快速操作</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 按服务器分组显示工具
+            Object.values(data.servers).forEach(server => {
+                html += `
+                    <div class="server-group">
+                        <div class="server-header" onclick="toggleServerGroup('${server.name}')">
+                            <h2 class="server-name">
+                                <span class="server-toggle" id="toggle-${server.name}">▼</span>
+                                🔗 ${escapeHtml(server.name)}
+                            </h2>
+                            <div class="server-info">
+                                <span class="tool-count-badge">${server.tool_count} 个工具</span>
+                                <span style="color: #a0aec0; font-size: 0.75rem;">点击折叠/展开</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-grid" id="tools-${server.name}">
+                            ${server.tools.map(tool => generateToolCard(tool)).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            toolsList.innerHTML = html;
+        }
+        
+        function generateToolCard(tool) {
+            const hasParams = tool.parameters && Object.keys(tool.parameters).length > 0;
+            
+            return `
+                <div class="tool-card">
+                    <div class="tool-name">
+                        <span class="tool-icon">⚙️</span>
+                        ${escapeHtml(tool.name)}
+                    </div>
+                    <div class="tool-description">
+                        ${escapeHtml(tool.description || '暂无描述')}
+                    </div>
+                    
+                    ${hasParams ? `
+                        <div class="tool-params">
+                            <strong style="color: #2d3748; margin-bottom: 0.5rem; display: block;">参数列表:</strong>
+                            ${Object.entries(tool.parameters).map(([name, param]) => {
+                                const isRequired = tool.required && tool.required.includes(name);
+                                return `
+                                    <div class="param-item">
+                                        <div style="margin-bottom: 0.25rem;">
+                                            <span class="param-name">${escapeHtml(name)}</span>
+                                            <span class="${isRequired ? 'param-required' : 'param-optional'}">
+                                                ${isRequired ? '必需' : '可选'}
+                                            </span>
+                                        </div>
+                                        ${param.description ? `<div style="margin-bottom: 0.25rem;">${escapeHtml(param.description)}</div>` : ''}
+                                        ${param.type ? `<div class="param-type">类型: ${escapeHtml(param.type)}</div>` : ''}
+                                        ${param.enum ? `<div class="param-enum">可选值: [${param.enum.map(v => escapeHtml(String(v))).join(', ')}]</div>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : `
+                        <div style="color: #a0aec0; font-style: italic; padding: 1rem; background: white; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+                            🎯 此工具无需参数
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        function showError(message) {
+            const toolsList = document.getElementById('toolsList');
+            toolsList.innerHTML = `
+                <div class="error-container">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+                    <h2>${escapeHtml(message)}</h2>
+                    <button onclick="loadTools()" class="btn btn-primary" style="margin-top: 1rem;">
+                        🔄 重新加载
+                    </button>
+                </div>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            if (typeof text !== 'string') {
+                text = String(text);
+            }
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 切换服务器分组的折叠状态
+        function toggleServerGroup(serverName) {
+            const toolsGrid = document.getElementById(`tools-${serverName}`);
+            const toggleIcon = document.getElementById(`toggle-${serverName}`);
+            
+            if (!toolsGrid || !toggleIcon) return;
+            
+            const isCollapsed = toolsGrid.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // 展开
+                toolsGrid.classList.remove('collapsed');
+                toggleIcon.classList.remove('collapsed');
+                toggleIcon.textContent = '▼';
+                
+                // 保存展开状态
+                localStorage.setItem(`server-${serverName}-collapsed`, 'false');
+            } else {
+                // 折叠
+                toolsGrid.classList.add('collapsed');
+                toggleIcon.classList.add('collapsed');
+                toggleIcon.textContent = '▶';
+                
+                // 保存折叠状态
+                localStorage.setItem(`server-${serverName}-collapsed`, 'true');
+            }
+            
+            // 更新全局按钮文本
+            updateToggleAllButtonText();
+        }
+        
+        // 恢复服务器分组的折叠状态
+        function restoreServerGroupStates() {
+            // 获取所有服务器分组
+            document.querySelectorAll('.server-group').forEach(group => {
+                const header = group.querySelector('.server-header');
+                if (header && header.onclick) {
+                    const onclickStr = header.getAttribute('onclick');
+                    const match = onclickStr.match(/toggleServerGroup\('([^']+)'\)/);
+                    if (match) {
+                        const serverName = match[1];
+                        const isCollapsed = localStorage.getItem(`server-${serverName}-collapsed`) === 'true';
+                        
+                        if (isCollapsed) {
+                            const toolsGrid = document.getElementById(`tools-${serverName}`);
+                            const toggleIcon = document.getElementById(`toggle-${serverName}`);
+                            
+                            if (toolsGrid && toggleIcon) {
+                                toolsGrid.classList.add('collapsed');
+                                toggleIcon.classList.add('collapsed');
+                                toggleIcon.textContent = '▶';
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新"全部折叠/展开"按钮文本
+            updateToggleAllButtonText();
+        }
+        
+        // 切换所有服务器分组
+        function toggleAllServerGroups() {
+            const allGroups = document.querySelectorAll('.tools-grid');
+            const hasAnyExpanded = Array.from(allGroups).some(grid => !grid.classList.contains('collapsed'));
+            
+            allGroups.forEach(grid => {
+                const serverId = grid.id.replace('tools-', '');
+                const toggleIcon = document.getElementById(`toggle-${serverId}`);
+                
+                if (hasAnyExpanded) {
+                    // 如果有展开的，就全部折叠
+                    grid.classList.add('collapsed');
+                    if (toggleIcon) {
+                        toggleIcon.classList.add('collapsed');
+                        toggleIcon.textContent = '▶';
+                    }
+                    localStorage.setItem(`server-${serverId}-collapsed`, 'true');
+                } else {
+                    // 如果全部折叠，就全部展开
+                    grid.classList.remove('collapsed');
+                    if (toggleIcon) {
+                        toggleIcon.classList.remove('collapsed');
+                        toggleIcon.textContent = '▼';
+                    }
+                    localStorage.setItem(`server-${serverId}-collapsed`, 'false');
+                }
+            });
+            
+            updateToggleAllButtonText();
+        }
+        
+        // 更新"全部折叠/展开"按钮文本
+        function updateToggleAllButtonText() {
+            const toggleAllText = document.getElementById('toggle-all-text');
+            if (!toggleAllText) return;
+            
+            const allGroups = document.querySelectorAll('.tools-grid');
+            const hasAnyExpanded = Array.from(allGroups).some(grid => !grid.classList.contains('collapsed'));
+            
+            toggleAllText.textContent = hasAnyExpanded ? '全部折叠' : '全部展开';
+        }
+        
+        // 页面加载时获取工具列表
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 清除可能的缓存
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        if (name.includes('api') || name.includes('tools')) {
+                            console.log('🧹 清除API缓存:', name);
+                            caches.delete(name);
+                        }
+                    });
+                });
+            }
+            
+            // 强制刷新工具列表
+            await loadTools();
+            // 延迟一点时间确保DOM渲染完成后再恢复状态
+            setTimeout(restoreServerGroupStates, 100);
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,334 @@
+/* tools.css - 工具页面专用样式 */
+
+/* 工具页面特定样式 */
+body {
+    /* 允许页面滚动 */
+    overflow: auto;
+    background: #f8fafc;
+}
+
+.app-container {
+    /* 允许内容超出视口 */
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+}
+
+.tools-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    /* 确保可以滚动 */
+    min-height: calc(100vh - 200px);
+}
+
+/* 服务器分组样式 */
+.server-group {
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.server-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.server-header:hover {
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    margin: -0.5rem;
+    padding: 0.5rem 0.5rem 1rem 0.5rem;
+}
+
+.server-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.server-toggle {
+    font-size: 1rem;
+    color: #718096;
+    transition: transform 0.2s ease;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.server-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.server-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #718096;
+}
+
+.tool-count-badge {
+    background: #4299e1;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1rem;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.tools-grid.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.tool-card {
+    background: #f8fafc;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    /* 确保卡片内容可以正确换行 */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tool-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+    /* 确保长名称可以换行 */
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tool-icon {
+    font-size: 1.25rem;
+}
+
+.tool-description {
+    color: #718096;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    /* 确保描述可以正确换行 */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.tool-params {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    border: 1px solid #e2e8f0;
+    /* 确保参数区域可以滚动 */
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.param-item {
+    margin-bottom: 0.75rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    /* 确保参数可以换行 */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+    padding: 0.5rem;
+    background: #f8fafc;
+    border-radius: 0.25rem;
+    border-left: 3px solid #4299e1;
+}
+
+.param-item:last-child {
+    margin-bottom: 0;
+}
+
+.param-name {
+    color: #4299e1;
+    font-weight: 600;
+}
+
+.param-required {
+    color: #e53e3e;
+    font-size: 0.75rem;
+    background: #fed7d7;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+.param-optional {
+    color: #38a169;
+    font-size: 0.75rem;
+    background: #c6f6d5;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+.param-type {
+    color: #805ad5;
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+.param-enum {
+    color: #d69e2e;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    padding: 0.25rem;
+    background: #fefcbf;
+    border-radius: 0.25rem;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #4299e1;
+    text-decoration: none;
+    margin-bottom: 2rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.back-link:hover {
+    color: #3182ce;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.2);
+}
+
+.loading-container, .error-container {
+    text-align: center;
+    padding: 3rem;
+    color: #2d3748;
+    background: white;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.error-container h2 {
+    color: #e53e3e;
+    margin-bottom: 1rem;
+}
+
+.stats-summary {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #4299e1;
+    display: block;
+}
+
+.stat-label {
+    color: #718096;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* 滚动条样式 */
+.tool-params::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tool-params::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 3px;
+}
+
+.tool-params::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.tool-params::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .tools-container {
+        padding: 1rem;
+    }
+    
+    .tools-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tool-card {
+        padding: 1rem;
+    }
+    
+    .server-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .tool-name {
+        font-size: 1rem;
+    }
+    
+    .param-item {
+        font-size: 0.8rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+} 

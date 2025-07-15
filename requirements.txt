@@ -1,0 +1,18 @@
+# 简单MCP智能助手依赖项
+
+# 核心LangChain组件
+langchain-core>=0.1.0
+langchain-community>=0.0.10
+langchain-openai>=0.1.0
+fastapi
+uvicorn[standard]==0.24.0
+websockets
+python-multipart==0.0.6
+# MCP适配器
+langchain-mcp-adapters>=0.1.0
+
+# LangGraph (用于ReAct智能体)
+langgraph>=0.0.20
+
+# 基础依赖
+python-dotenv>=1.0.0 
