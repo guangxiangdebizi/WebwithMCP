@@ -31,14 +31,7 @@ class MCPConfig:
 
     def __init__(self, config_file: str = "mcp.json"):
         self.config_file = config_file
-        self.default_config = {
-            "servers": {
-                "finance-data-server": {
-                    "url": "http://106.14.205.176:3101/sse",
-                    "transport": "sse"
-                }
-            }
-        }
+        self.default_config = {}
 
     def load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
@@ -115,25 +108,41 @@ class WebMCPAgent:
                 except Exception as test_e:
                     print(f"⚠️ {server_name} 连接测试失败: {test_e}")
             
-            # 创建MCP客户端 - 强制清除缓存
+            # 创建MCP客户端 - 强制清除缓存并禁用HTTP/2
+            import httpx
+
+            def http_client_factory(headers=None, timeout=None, auth=None):
+                return httpx.AsyncClient(
+                    http2=False,  # 禁用HTTP/2
+                    headers=headers,
+                    timeout=timeout,
+                    auth=auth
+                )
+
+            # 更新服务器配置以使用自定义的httpx客户端工厂
+            for server_name in self.server_configs:
+                self.server_configs[server_name]['httpx_client_factory'] = http_client_factory
+
             self.mcp_client = MultiServerMCPClient(self.server_configs)
-            
-            # 强制清除可能的缓存
-            if hasattr(self.mcp_client, '_tools_cache'):
-                delattr(self.mcp_client, '_tools_cache')
-            if hasattr(self.mcp_client, '_servers_cache'):
-                delattr(self.mcp_client, '_servers_cache')
-            
-            # 获取所有工具（用于绑定给大模型）
-            print("🔧 正在获取工具列表...")
-            self.tools = await self.mcp_client.get_tools()
+
+            # 改为串行获取工具，避免并发问题
+            print("🔧 正在逐个获取服务器工具...")
+            for server_name in self.server_configs.keys():
+                try:
+                    print(f"─── 正在从服务器 '{server_name}' 获取工具 ───")
+                    server_tools = await self.mcp_client.get_tools(server_name=server_name)
+                    self.tools.extend(server_tools)
+                    self.tools_by_server[server_name] = server_tools
+                    print(f"✅ 从 {server_name} 获取到 {len(server_tools)} 个工具")
+                except Exception as e:
+                    print(f"❌ 从服务器 '{server_name}' 获取工具失败: {e}")
+                    self.tools_by_server[server_name] = []
             
             # 验证工具来源，确保只有配置文件中的服务器
             print(f"🔍 配置的服务器: {list(self.server_configs.keys())}")
             print(f"🔍 实际获取到的工具数量: {len(self.tools)}")
             
-            # 按服务器分组获取工具
-            await self._organize_tools_by_server()
+            # 分组逻辑已在上面的循环中完成，无需额外调用
 
             print(f"✅ 成功连接，获取到 {len(self.tools)} 个工具")
             print(f"📊 服务器分组情况: {dict((name, len(tools)) for name, tools in self.tools_by_server.items())}")
@@ -157,84 +166,6 @@ class WebMCPAgent:
                 except:
                     pass
             return False
-
-    async def _organize_tools_by_server(self):
-        """按服务器分组整理工具"""
-        self.tools_by_server = {}
-        
-        try:
-            print(f"🧹 清理工具分组，只保留配置的服务器: {list(self.server_configs.keys())}")
-            
-            # 如果mcp_client有servers属性且可以按服务器获取工具
-            if hasattr(self.mcp_client, 'servers') and self.mcp_client.servers:
-                for server_name, server_client in self.mcp_client.servers.items():
-                    # 只处理配置文件中存在的服务器
-                    if server_name not in self.server_configs:
-                        print(f"⚠️ 跳过未配置的服务器: {server_name}")
-                        continue
-                        
-                    try:
-                        # 尝试从单个服务器获取工具
-                        if hasattr(server_client, 'get_tools'):
-                            server_tools = await server_client.get_tools()
-                            self.tools_by_server[server_name] = server_tools
-                            print(f"🔧 从服务器 '{server_name}' 获取到 {len(server_tools)} 个工具")
-                        else:
-                            print(f"⚠️ 服务器 '{server_name}' 不支持单独获取工具")
-                    except Exception as e:
-                        print(f"⚠️ 从服务器 '{server_name}' 获取工具失败: {e}")
-                        # 将该服务器标记为空工具列表
-                        self.tools_by_server[server_name] = []
-            
-            # 如果没有成功按服务器分组，则使用备用方案
-            if not self.tools_by_server:
-                print("📝 使用备用方案：根据配置文件推断工具分组")
-                
-                # 根据配置的服务器数量进行分组
-                server_names = list(self.server_configs.keys())
-                print(f"🔧 备用方案 - 配置的服务器: {server_names}")
-                
-                if len(server_names) == 1:
-                    # 单服务器：所有工具都属于这个服务器
-                    server_name = server_names[0]
-                    self.tools_by_server[server_name] = self.tools
-                    print(f"📌 单服务器模式: 将 {len(self.tools)} 个工具分配给 '{server_name}'")
-                elif len(server_names) > 1:
-                    # 多服务器：尝试根据工具名称或其他特征分组
-                    # 这里采用简单策略：平均分配（实际项目中可根据工具名称等特征智能分组）
-                    tools_per_server = len(self.tools) // len(server_names)
-                    remainder = len(self.tools) % len(server_names)
-                    
-                    start_idx = 0
-                    for i, server_name in enumerate(server_names):
-                        end_idx = start_idx + tools_per_server + (1 if i < remainder else 0)
-                        self.tools_by_server[server_name] = self.tools[start_idx:end_idx]
-                        print(f"📌 多服务器模式: 将工具 {start_idx}-{end_idx-1} 分配给 '{server_name}'")
-                        start_idx = end_idx
-                else:
-                    # 没有配置服务器，创建默认分组
-                    self.tools_by_server["default-server"] = self.tools
-                    print(f"📌 默认模式: 将 {len(self.tools)} 个工具分配给 'default-server'")
-                    
-        except Exception as e:
-            print(f"⚠️ 工具分组过程出错: {e}")
-            # 兜底方案：创建单一分组
-            default_name = list(self.server_configs.keys())[0] if self.server_configs else "default-server"
-            self.tools_by_server[default_name] = self.tools
-        
-        # 最终验证：移除所有未配置的服务器
-        configured_servers = set(self.server_configs.keys()) if self.server_configs else set()
-        servers_to_remove = []
-        
-        for server_name in self.tools_by_server.keys():
-            if server_name not in configured_servers and server_name != "default-server":
-                servers_to_remove.append(server_name)
-        
-        for server_name in servers_to_remove:
-            print(f"🧹 移除未配置的服务器工具: {server_name}")
-            del self.tools_by_server[server_name]
-        
-        print(f"✅ 最终工具分组结果: {dict((name, len(tools)) for name, tools in self.tools_by_server.items())}")
 
     def _get_system_prompt(self) -> str:
         """获取系统提示词"""

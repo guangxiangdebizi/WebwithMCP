@@ -8,6 +8,7 @@ import json
 import asyncio
 from typing import List, Dict, Any
 from datetime import datetime
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,31 +19,17 @@ import uvicorn
 from mcp_agent import WebMCPAgent
 from database import ChatDatabase
 
-# 创建FastAPI应用
-app = FastAPI(
-    title="MCP Web智能助手",
-    description="基于MCP的智能助手Web版",
-    version="1.0.0"
-)
-
-# 配置CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应该限制具体域名
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # 全局变量
 mcp_agent = None
 chat_db = None  # SQLite数据库实例
 active_connections: List[WebSocket] = []
 
-@app.on_event("startup")
-async def startup_event():
-    """应用启动时初始化MCP智能体和数据库"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
     global mcp_agent, chat_db
+    
+    # 启动时初始化
     print("🚀 启动 MCP Web 智能助手...")
     
     # 初始化数据库
@@ -61,16 +48,34 @@ async def startup_event():
         raise Exception("MCP智能体初始化失败")
     
     print("✅ MCP Web 智能助手启动成功")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """应用关闭时清理资源"""
-    global mcp_agent, chat_db
+    
+    yield
+    
+    # 关闭时清理资源
     if mcp_agent:
         await mcp_agent.close()
     if chat_db:
         await chat_db.close()
     print("👋 MCP Web 智能助手已关闭")
+
+# 创建FastAPI应用
+app = FastAPI(
+    title="MCP Web智能助手",
+    description="基于MCP的智能助手Web版",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境应该限制具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 # ─────────── WebSocket 接口 ───────────
 
@@ -336,7 +341,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8002,
         reload=True,
         log_level="info"
-    ) 
+    )

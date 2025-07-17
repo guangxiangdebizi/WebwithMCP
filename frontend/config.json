@@ -1,13 +1,13 @@
 {
   "backend": {
     "host": "localhost",
-    "port": 8001,
+    "port": 8002,
     "protocol": "http",
     "wsProtocol": "ws"
   },
   "api": {
-    "baseUrl": "http://localhost:8001",
-    "wsUrl": "ws://localhost:8001"
+    "baseUrl": "http://localhost:8002",
+    "wsUrl": "ws://localhost:8002"
   },
   "version": "1.0.0",
   "description": "MCP Web智能助手前端配置文件"

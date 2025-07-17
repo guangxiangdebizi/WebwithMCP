@@ -2,7 +2,13 @@
   "servers": {
     "finance-data-server": {
       "url": "http://106.14.205.176:3101/sse",
-      "transport": "sse"
+      "transport": "sse",
+      "timeout": 600
+    },
+    "medical-mcp": {
+      "transport": "sse",
+      "url": "http://127.0.0.1:3101/sse",
+      "timeout": 60
     }
   }
-} 
+}
