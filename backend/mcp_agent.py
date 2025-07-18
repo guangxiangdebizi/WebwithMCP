@@ -17,9 +17,9 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # ─────────── 1. 大模型配置 ───────────
 MODEL_CONFIG = {
-    "api_key": "sk-df2c763fc1d14b20b630dc5ac474d8c2",  # ← 改为您的API Key
-    "base_url": "https://api.deepseek.com/v1",  # ← 改为您的API地址
-    "model_name": "deepseek-chat",  # ← 改为您的模型名称
+    "api_key": "your_api_key",  # ← 改为您的API Key
+    "base_url": "your_base_url",  # ← 改为您的API地址
+    "model_name": "your_model_name",  # ← 改为您的模型名称
     "temperature": 0.2,
     "timeout": 60
 }
