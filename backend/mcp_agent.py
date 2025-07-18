@@ -14,12 +14,11 @@ from datetime import datetime, timedelta
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
-
 # ─────────── 1. 大模型配置 ───────────
 MODEL_CONFIG = {
-    "api_key": "your_api_key",  # ← 改为您的API Key
-    "base_url": "your_base_url",  # ← 改为您的API地址
-    "model_name": "your_model_name",  # ← 改为您的模型名称
+    "api_key": "sk-df2c763fc1d14b20b630dc5ac474d8c2",  # ← 改为您的API Key
+    "base_url": "https://api.deepseek.com/v1",  # ← 改为您的API地址
+    "model_name": "deepseek-chat",  # ← 改为您的模型名称
     "temperature": 0.2,
     "timeout": 60
 }
@@ -186,7 +185,7 @@ class WebMCPAgent:
 
 请始终以用户需求为中心，高效地使用可用工具。"""
 
-    async def chat_stream(self, user_input: str) -> AsyncGenerator[Dict[str, Any], None]:
+    async def chat_stream(self, user_input: str, history: List[Dict[str, Any]] = None) -> AsyncGenerator[Dict[str, Any], None]:
         """流式处理用户输入 - 为WebSocket推送优化"""
         try:
             print(f"🤖 开始处理用户输入: {user_input[:50]}...")
@@ -194,9 +193,18 @@ class WebMCPAgent:
 
             # 构建消息历史
             messages = [
-                {"role": "system", "content": self._get_system_prompt()},
-                {"role": "user", "content": user_input}
+                {"role": "system", "content": self._get_system_prompt()}
             ]
+
+            # 添加历史记录
+            if history:
+                for record in history:
+                    messages.append({"role": "user", "content": record['user_input']})
+                    if record.get('ai_response'):
+                        messages.append({"role": "assistant", "content": record['ai_response']})
+
+            messages.append({"role": "user", "content": user_input})
+
             max_iterations = 10
             iteration = 0
 

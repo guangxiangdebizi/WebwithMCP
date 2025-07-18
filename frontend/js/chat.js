@@ -5,6 +5,7 @@ class ChatApp {
         this.currentAIMessage = null; // 当前正在接收的AI消息
         this.currentAIContent = ''; // 当前AI消息的累积内容
         this.thinkingFlow = new ThinkingFlow(this); // 思维流管理器
+        this.sessionId = null; // 当前会话ID，由后端分配
         
         // DOM 元素
         this.chatMessages = document.getElementById('chatMessages');
@@ -112,6 +113,12 @@ class ChatApp {
         console.log('📨 收到消息:', data);
         
         switch (data.type) {
+            case 'session_info':
+                // 接收会话ID
+                this.sessionId = data.session_id;
+                console.log('🆔 收到会话ID:', this.sessionId);
+                break;
+                
             case 'user_msg_received':
                 // 用户消息已收到确认
                 break;
@@ -436,7 +443,14 @@ class ChatApp {
                 return;
             }
             
-            const apiUrl = window.configManager.getFullApiUrl('/api/history');
+            // 构建API URL，如果有会话ID则传递
+            let apiUrl = window.configManager.getFullApiUrl('/api/history');
+            if (this.sessionId) {
+                apiUrl += `?session_id=${encodeURIComponent(this.sessionId)}`;
+                console.log('🗑️ 清空当前会话历史:', this.sessionId);
+            } else {
+                console.log('🗑️ 清空所有历史（无会话ID）');
+            }
             
             fetch(apiUrl, {
                 method: 'DELETE'

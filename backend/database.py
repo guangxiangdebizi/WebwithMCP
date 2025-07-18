@@ -190,10 +190,12 @@ class ChatDatabase:
                 else:
                     # 获取最近的对话记录
                     cursor = await db.execute("""
-                        SELECT * FROM chat_records 
-                        WHERE session_id = ?
-                        ORDER BY created_at DESC 
-                        LIMIT ?
+                        SELECT * FROM (
+                            SELECT * FROM chat_records 
+                            WHERE session_id = ?
+                            ORDER BY created_at DESC 
+                            LIMIT ?
+                        ) ORDER BY created_at ASC
                     """, (session_id, limit))
                 
                 rows = await cursor.fetchall()
@@ -277,4 +279,4 @@ class ChatDatabase:
     
     async def close(self):
         """关闭数据库连接（在aiosqlite中不需要显式关闭）"""
-        pass 
+        pass

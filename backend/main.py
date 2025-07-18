@@ -6,6 +6,7 @@ FastAPI 后端主文件
 
 import json
 import asyncio
+import uuid
 from typing import List, Dict, Any
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -84,16 +85,35 @@ class ConnectionManager:
     
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        self.connection_sessions: Dict[WebSocket, str] = {}  # 连接到会话ID的映射
     
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
+        # 为每个连接生成唯一的会话ID
+        session_id = str(uuid.uuid4())
         self.active_connections.append(websocket)
-        print(f"📱 新连接建立，当前连接数: {len(self.active_connections)}")
+        self.connection_sessions[websocket] = session_id
+        print(f"📱 新连接建立，会话ID: {session_id}，当前连接数: {len(self.active_connections)}")
+        
+        # 向前端发送会话ID
+        await self.send_personal_message({
+            "type": "session_info",
+            "session_id": session_id
+        }, websocket)
+        
+        return session_id
     
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        print(f"📱 连接断开，当前连接数: {len(self.active_connections)}")
+        if websocket in self.connection_sessions:
+            session_id = self.connection_sessions[websocket]
+            del self.connection_sessions[websocket]
+            print(f"📱 连接断开，会话ID: {session_id}，当前连接数: {len(self.active_connections)}")
+    
+    def get_session_id(self, websocket: WebSocket) -> str:
+        """获取WebSocket连接对应的会话ID"""
+        return self.connection_sessions.get(websocket, "default")
     
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         try:
@@ -106,7 +126,7 @@ manager = ConnectionManager()
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     """WebSocket聊天接口"""
-    await manager.connect(websocket)
+    session_id = await manager.connect(websocket)
     
     try:
         while True:
@@ -142,9 +162,13 @@ async def websocket_chat(websocket: WebSocket):
                         "ai_response_parts": []
                     }
                     
+                    # 获取当前连接的聊天历史
+                    current_session_id = manager.get_session_id(websocket)
+                    history = await chat_db.get_chat_history(session_id=current_session_id, limit=10) # 限制最近10条
+
                     # 流式处理并推送AI响应
                     try:
-                        async for response_chunk in mcp_agent.chat_stream(user_input):
+                        async for response_chunk in mcp_agent.chat_stream(user_input, history=history):
                             # 转发给客户端
                             await manager.send_personal_message(response_chunk, websocket)
                             
@@ -219,7 +243,8 @@ async def websocket_chat(websocket: WebSocket):
                                 user_input=conversation_data["user_input"],
                                 mcp_tools_called=conversation_data["mcp_tools_called"],
                                 mcp_results=conversation_data["mcp_results"],
-                                ai_response=ai_response
+                                ai_response=ai_response,
+                                session_id=current_session_id
                             )
                             if success:
                                 print(f"✅ 对话记录保存成功")
@@ -311,15 +336,22 @@ async def get_history(limit: int = 50, session_id: str = "default", conversation
         raise HTTPException(status_code=500, detail=f"获取历史记录失败: {str(e)}")
 
 @app.delete("/api/history")
-async def clear_history(session_id: str = "default"):
+async def clear_history(session_id: str = None):
     """清空聊天历史"""
     if not chat_db:
         raise HTTPException(status_code=503, detail="数据库未初始化")
     
     try:
-        success = await chat_db.clear_history(session_id)
+        # 如果没有提供session_id，则清空所有历史（保持向后兼容）
+        if session_id:
+            success = await chat_db.clear_history(session_id=session_id)
+            message = f"会话 {session_id} 的聊天历史已清空"
+        else:
+            success = await chat_db.clear_history()
+            message = "所有聊天历史已清空"
+        
         if success:
-            return {"success": True, "message": f"会话 {session_id} 的聊天历史已清空"}
+            return {"success": True, "message": message}
         else:
             raise HTTPException(status_code=500, detail="清空历史记录失败")
     except Exception as e:
