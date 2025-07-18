@@ -126,6 +126,8 @@ async def websocket_chat(websocket: WebSocket):
                         }, websocket)
                         continue
                     
+                    print(f"📨 收到用户消息: {user_input[:50]}...")
+                    
                     # 确认收到用户消息
                     await manager.send_personal_message({
                         "type": "user_msg_received",
@@ -141,59 +143,90 @@ async def websocket_chat(websocket: WebSocket):
                     }
                     
                     # 流式处理并推送AI响应
-                    async for response_chunk in mcp_agent.chat_stream(user_input):
-                        # 转发给客户端
-                        await manager.send_personal_message(response_chunk, websocket)
+                    try:
+                        async for response_chunk in mcp_agent.chat_stream(user_input):
+                            # 转发给客户端
+                            await manager.send_personal_message(response_chunk, websocket)
+                            
+                            # 收集不同类型的响应数据
+                            chunk_type = response_chunk.get("type")
+                            
+                            if chunk_type == "tool_start":
+                                # 记录工具调用开始
+                                tool_call = {
+                                    "tool_id": response_chunk.get("tool_id"),
+                                    "tool_name": response_chunk.get("tool_name"),
+                                    "tool_args": response_chunk.get("tool_args"),
+                                    "progress": response_chunk.get("progress")
+                                }
+                                conversation_data["mcp_tools_called"].append(tool_call)
+                            
+                            elif chunk_type == "tool_end":
+                                # 记录工具执行结果
+                                tool_result = {
+                                    "tool_id": response_chunk.get("tool_id"),
+                                    "tool_name": response_chunk.get("tool_name"),
+                                    "result": response_chunk.get("result"),
+                                    "success": True
+                                }
+                                conversation_data["mcp_results"].append(tool_result)
+                            
+                            elif chunk_type == "tool_error":
+                                # 记录工具执行错误
+                                tool_error = {
+                                    "tool_id": response_chunk.get("tool_id"),
+                                    "error": response_chunk.get("error"),
+                                    "success": False
+                                }
+                                conversation_data["mcp_results"].append(tool_error)
+                            
+                            elif chunk_type == "ai_response_chunk":
+                                # 收集AI回复内容片段
+                                conversation_data["ai_response_parts"].append(
+                                    response_chunk.get("content", "")
+                                )
+                            
+                            elif chunk_type == "error":
+                                # 记录错误信息
+                                print(f"❌ MCP处理错误: {response_chunk.get('content')}")
+                                # 即使出错也要保存对话记录
+                                break
                         
-                        # 收集不同类型的响应数据
-                        chunk_type = response_chunk.get("type")
+                        # 组装完整的AI回复
+                        ai_response = "".join(conversation_data["ai_response_parts"])
                         
-                        if chunk_type == "tool_start":
-                            # 记录工具调用开始
-                            tool_call = {
-                                "tool_id": response_chunk.get("tool_id"),
-                                "tool_name": response_chunk.get("tool_name"),
-                                "tool_args": response_chunk.get("tool_args"),
-                                "progress": response_chunk.get("progress")
-                            }
-                            conversation_data["mcp_tools_called"].append(tool_call)
+                        # 如果没有AI回复但有错误，添加错误信息
+                        if not ai_response and conversation_data["mcp_results"]:
+                            error_results = [r for r in conversation_data["mcp_results"] if not r.get("success", True)]
+                            if error_results:
+                                ai_response = f"处理过程中遇到错误：\n" + "\n".join([r.get("error", "未知错误") for r in error_results])
                         
-                        elif chunk_type == "tool_end":
-                            # 记录工具执行结果
-                            tool_result = {
-                                "tool_id": response_chunk.get("tool_id"),
-                                "tool_name": response_chunk.get("tool_name"),
-                                "result": response_chunk.get("result"),
-                                "success": True
-                            }
-                            conversation_data["mcp_results"].append(tool_result)
+                        print(f"💾 准备保存对话记录，AI回复长度: {len(ai_response)}")
                         
-                        elif chunk_type == "tool_error":
-                            # 记录工具执行错误
-                            tool_error = {
-                                "tool_id": response_chunk.get("tool_id"),
-                                "error": response_chunk.get("error"),
-                                "success": False
-                            }
-                            conversation_data["mcp_results"].append(tool_error)
+                    except Exception as e:
+                        print(f"❌ MCP流式处理异常: {e}")
+                        import traceback
+                        traceback.print_exc()
                         
-                        elif chunk_type == "ai_response_chunk":
-                            # 收集AI回复内容片段
-                            conversation_data["ai_response_parts"].append(
-                                response_chunk.get("content", "")
-                            )
-                    
-                    # 组装完整的AI回复
-                    ai_response = "".join(conversation_data["ai_response_parts"])
+                        # 即使异常也要保存对话记录
+                        ai_response = f"处理请求时出错: {str(e)}"
+                        conversation_data["ai_response_parts"] = [ai_response]
                     
                     # 保存完整对话到数据库
                     if chat_db:
-                        await chat_db.save_conversation(
-                            user_input=conversation_data["user_input"],
-                            mcp_tools_called=conversation_data["mcp_tools_called"],
-                            mcp_results=conversation_data["mcp_results"],
-                            ai_response=ai_response
-                        )
+                        try:
+                            success = await chat_db.save_conversation(
+                                user_input=conversation_data["user_input"],
+                                mcp_tools_called=conversation_data["mcp_tools_called"],
+                                mcp_results=conversation_data["mcp_results"],
+                                ai_response=ai_response
+                            )
+                            if success:
+                                print(f"✅ 对话记录保存成功")
+                            else:
+                                print(f"❌ 对话记录保存失败")
+                        except Exception as e:
+                            print(f"❌ 保存对话记录异常: {e}")
                 
                 elif message.get("type") == "ping":
                     # 心跳响应
@@ -214,6 +247,9 @@ async def websocket_chat(websocket: WebSocket):
                     "content": "消息格式错误，请发送有效的JSON"
                 }, websocket)
             except Exception as e:
+                print(f"❌ WebSocket消息处理异常: {e}")
+                import traceback
+                traceback.print_exc()
                 await manager.send_personal_message({
                     "type": "error",
                     "content": f"处理消息时出错: {str(e)}"

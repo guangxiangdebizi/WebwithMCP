@@ -17,9 +17,9 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # ─────────── 1. 大模型配置 ───────────
 MODEL_CONFIG = {
-    "api_key": "your_apikey",  # ← 改为您的API Key
-    "base_url": "your_apiurl",  # ← 改为您的API地址
-    "model_name": "your_modelname",  # ← 改为您的模型名称
+    "api_key": "sk-df2c763fc1d14b20b630dc5ac474d8c2",  # ← 改为您的API Key
+    "base_url": "https://api.deepseek.com/v1",  # ← 改为您的API地址
+    "model_name": "deepseek-chat",  # ← 改为您的模型名称
     "temperature": 0.2,
     "timeout": 60
 }
@@ -189,6 +189,7 @@ class WebMCPAgent:
     async def chat_stream(self, user_input: str) -> AsyncGenerator[Dict[str, Any], None]:
         """流式处理用户输入 - 为WebSocket推送优化"""
         try:
+            print(f"🤖 开始处理用户输入: {user_input[:50]}...")
             yield {"type": "status", "content": "开始分析用户需求..."}
 
             # 构建消息历史
@@ -205,10 +206,21 @@ class WebMCPAgent:
                 yield {"type": "status", "content": f"第 {iteration} 轮推理..."}
 
                 # 调用大模型进行推理
-                response = await self.llm.ainvoke(messages)
+                try:
+                    print(f"🧠 第 {iteration} 轮推理开始...")
+                    response = await self.llm.ainvoke(messages)
+                    print(f"✅ 第 {iteration} 轮推理完成")
+                except Exception as e:
+                    print(f"❌ 大模型调用失败: {e}")
+                    yield {
+                        "type": "error",
+                        "content": f"大模型调用失败: {str(e)}"
+                    }
+                    return
 
                 # 检查是否有工具调用
                 if hasattr(response, 'tool_calls') and response.tool_calls:
+                    print(f"🔧 检测到 {len(response.tool_calls)} 个工具调用")
                     yield {
                         "type": "tool_plan",
                         "content": f"AI决定调用 {len(response.tool_calls)} 个工具",
@@ -220,6 +232,8 @@ class WebMCPAgent:
                         tool_name = tool_call['name']
                         tool_args = tool_call['args']
                         tool_id = tool_call.get('id', f"call_{i}")
+
+                        print(f"🔧 执行工具 {i}/{len(response.tool_calls)}: {tool_name}")
 
                         # 推送工具开始执行
                         yield {
@@ -240,6 +254,7 @@ class WebMCPAgent:
 
                             if target_tool is None:
                                 error_msg = f"工具 '{tool_name}' 未找到"
+                                print(f"❌ {error_msg}")
                                 yield {
                                     "type": "tool_error",
                                     "tool_id": tool_id,
@@ -248,7 +263,9 @@ class WebMCPAgent:
                                 tool_result = f"错误: {error_msg}"
                             else:
                                 # 执行工具
+                                print(f"🔧 正在执行工具: {tool_name}")
                                 tool_result = await target_tool.ainvoke(tool_args)
+                                print(f"✅ 工具执行完成: {tool_name}")
 
                                 # 推送工具执行结果
                                 yield {
@@ -260,6 +277,7 @@ class WebMCPAgent:
 
                         except Exception as e:
                             error_msg = f"工具执行出错: {e}"
+                            print(f"❌ {error_msg}")
                             yield {
                                 "type": "tool_error",
                                 "tool_id": tool_id,
@@ -286,6 +304,7 @@ class WebMCPAgent:
                 else:
                     # 没有工具调用，这是最终回复
                     final_response = response.content or ""
+                    print(f"💬 生成最终回复，长度: {len(final_response)}")
 
                     # 流式推送最终回复
                     yield {
@@ -311,15 +330,21 @@ class WebMCPAgent:
                     return
 
             # 达到最大迭代次数
+            error_msg = f"达到最大推理轮数 ({max_iterations})，停止执行"
+            print(f"⚠️ {error_msg}")
             yield {
                 "type": "error",
-                "content": f"达到最大推理轮数 ({max_iterations})，停止执行"
+                "content": error_msg
             }
 
         except Exception as e:
+            import traceback
+            print(f"❌ chat_stream 异常: {e}")
+            print("📋 详细错误信息:")
+            traceback.print_exc()
             yield {
                 "type": "error",
-                "content": f"处理请求时出错: {e}"
+                "content": f"处理请求时出错: {str(e)}"
             }
 
     def get_tools_info(self) -> Dict[str, Any]:

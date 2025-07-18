@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/style.css">
     <!-- 引入marked.js用于markdown解析 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <!-- 引入html2canvas用于截图 -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -16,6 +18,7 @@
                 <h1 class="app-title">🤖 MCP Web 智能助手</h1>
                 <div class="header-actions">
                     <button id="clearChatBtn" class="btn btn-secondary">清空聊天</button>
+                    <button id="shareChatBtn" class="btn btn-secondary">分享对话</button>
                     <a href="tools.html" class="btn btn-secondary">工具列表</a>
                     <div class="status-indicator">
                         <span id="connectionStatus" class="status-dot offline"></span>
@@ -66,6 +69,7 @@
     <!-- JavaScript -->
     <script src="js/config.js"></script>
     <script src="js/ws.js"></script>
+    <script src="js/chat/thinking-flow.js"></script>
     <script src="js/chat.js"></script>
 </body>
-</html> 
+</html>
