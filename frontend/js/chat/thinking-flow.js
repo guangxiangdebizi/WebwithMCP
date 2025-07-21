@@ -1,7 +1,8 @@
 // thinking-flow.js - 思维流管理模块
 class ThinkingFlow {
-    constructor(chatApp) {
-        this.chatApp = chatApp;
+    constructor(appInstance, appName = 'chatApp') {
+        this.appInstance = appInstance;
+        this.appName = appName;
         this.currentThinkingFlow = null;
         this.activeTools = new Map();
     }
@@ -18,7 +19,7 @@ class ThinkingFlow {
                     <span class="thinking-icon">🤖</span>
                     <span class="thinking-text">AI 正在思考...</span>
                 </div>
-                <button class="thinking-flow-toggle" onclick="chatApp.thinkingFlow.toggleThinkingFlow('${flowDiv.id}')">
+                <button class="thinking-flow-toggle" onclick="${this.appName}.thinkingFlow.toggleThinkingFlow('${flowDiv.id}')">
                     <span class="toggle-icon">▼</span>
                 </button>
             </div>
@@ -37,9 +38,9 @@ class ThinkingFlow {
             </div>
         `;
         
-        this.chatApp.chatMessages.appendChild(flowDiv);
+        this.appInstance.chatMessages.appendChild(flowDiv);
         this.currentThinkingFlow = flowDiv;
-        this.chatApp.scrollToBottom();
+        this.appInstance.scrollToBottom();
     }
 
     // 更新思维流阶段
@@ -85,7 +86,7 @@ class ThinkingFlow {
         `;
         
         stagesContainer.appendChild(stageDiv);
-        this.chatApp.scrollToBottom();
+        this.appInstance.scrollToBottom();
     }
 
     // 完成思维流
@@ -135,7 +136,7 @@ class ThinkingFlow {
                     <div class="tool-spinner"></div>
                 </div>
                 <div class="tool-info">
-                    <div class="tool-name">${this.chatApp.escapeHtml(data.tool_name)}</div>
+                    <div class="tool-name">${this.appInstance.escapeHtml(data.tool_name)}</div>
                     <div class="tool-progress">准备执行</div>
                 </div>
             </div>
@@ -143,7 +144,7 @@ class ThinkingFlow {
         
         toolsContainer.appendChild(toolDiv);
         this.activeTools.set(data.tool_id, toolDiv);
-        this.chatApp.scrollToBottom();
+        this.appInstance.scrollToBottom();
     }
 
     // 更新思维流中的工具状态
@@ -171,7 +172,7 @@ class ThinkingFlow {
                 <div class="tool-result-header">
                     <span class="tool-result-size">${resultSizeText}</span>
                     ${isLongContent ? `
-                        <button class="tool-result-toggle" onclick="chatApp.thinkingFlow.toggleToolResult('${data.tool_id}')">
+                        <button class="tool-result-toggle" onclick="${this.appName}.thinkingFlow.toggleToolResult('${data.tool_id}')">
                             <span class="toggle-icon">▶</span>
                             <span>展开</span>
                         </button>
@@ -185,14 +186,14 @@ class ThinkingFlow {
         } else if (status === 'error') {
             statusIcon = '<span class="tool-error">✗</span>';
             statusText = '执行失败';
-            resultSection = `<div class="tool-result-content error-text">${this.chatApp.escapeHtml(data.error)}</div>`;
+            resultSection = `<div class="tool-result-content error-text">${this.appInstance.escapeHtml(data.error)}</div>`;
         }
         
         toolDiv.innerHTML = `
             <div class="tool-header">
                 <div class="tool-icon">${statusIcon}</div>
                 <div class="tool-info">
-                    <div class="tool-name">${this.chatApp.escapeHtml(data.tool_name)}</div>
+                    <div class="tool-name">${this.appInstance.escapeHtml(data.tool_name)}</div>
                     <div class="tool-progress">${statusText}</div>
                 </div>
             </div>
@@ -292,12 +293,12 @@ class ThinkingFlow {
         }
         
         // 普通文本，确保正确转义
-        return `<pre>${this.chatApp.escapeHtml(result)}</pre>`;
+        return `<pre>${this.appInstance.escapeHtml(result)}</pre>`;
     }
     
     formatJsonResult(obj) {
         // 简单的JSON美化显示
-        return `<pre>${this.chatApp.escapeHtml(JSON.stringify(obj, null, 2))}</pre>`;
+        return `<pre>${this.appInstance.escapeHtml(JSON.stringify(obj, null, 2))}</pre>`;
     }
     
     looksLikeTable(text) {
@@ -337,7 +338,7 @@ class ThinkingFlow {
             if (headerCells.length > 0) {
                 tableHtml += '<thead><tr>';
                 headerCells.forEach(cell => {
-                    tableHtml += `<th>${this.chatApp.escapeHtml(cell)}</th>`;
+                    tableHtml += `<th>${this.appInstance.escapeHtml(cell)}</th>`;
                 });
                 tableHtml += '</tr></thead>';
             }
@@ -351,7 +352,7 @@ class ThinkingFlow {
                     if (cells.length > 0) {
                         tableHtml += '<tr>';
                         cells.forEach(cell => {
-                            tableHtml += `<td>${this.chatApp.escapeHtml(cell)}</td>`;
+                            tableHtml += `<td>${this.appInstance.escapeHtml(cell)}</td>`;
                         });
                         tableHtml += '</tr>';
                     }
@@ -381,18 +382,18 @@ class ThinkingFlow {
             
             let result = '';
             if (beforeTable) {
-                result += `<pre>${this.chatApp.escapeHtml(beforeTable)}</pre>`;
+                result += `<pre>${this.appInstance.escapeHtml(beforeTable)}</pre>`;
             }
             result += tableHtml;
             if (afterTable) {
-                result += `<pre>${this.chatApp.escapeHtml(afterTable)}</pre>`;
+                result += `<pre>${this.appInstance.escapeHtml(afterTable)}</pre>`;
             }
             
-            return result || `<pre>${this.chatApp.escapeHtml(text)}</pre>`;
+            return result || `<pre>${this.appInstance.escapeHtml(text)}</pre>`;
         }
         
         // 不是标准表格，返回普通格式
-        return `<pre>${this.chatApp.escapeHtml(text)}</pre>`;
+        return `<pre>${this.appInstance.escapeHtml(text)}</pre>`;
     }
 
     // 清理思维流状态

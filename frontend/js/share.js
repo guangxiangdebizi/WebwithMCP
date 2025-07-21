@@ -4,6 +4,7 @@ class ShareApp {
         this.sessionId = null;
         this.chatMessages = document.getElementById('chatMessages');
         this.loadingOverlay = document.getElementById('loadingOverlay');
+        this.thinkingFlow = new ThinkingFlow(this, 'shareApp'); // 使用正确的实例和名称
         
         this.init();
     }
@@ -95,9 +96,9 @@ class ShareApp {
                 // 添加用户消息
                 this.addUserMessage(record.user_input, record.created_at);
                 
-                // 添加工具调用信息（如果有）
+                // 重现思维链
                 if (record.mcp_tools_called && record.mcp_tools_called.length > 0) {
-                    this.addToolsInfo(record.mcp_tools_called, record.mcp_results);
+                    this.reproduceThinkingFlow(record);
                 }
                 
                 // 添加AI回复
@@ -381,72 +382,55 @@ class ShareApp {
         this.chatMessages.appendChild(messageDiv);
     }
     
-    addToolsInfo(toolsCalled, toolsResults) {
-        const toolsDiv = document.createElement('div');
-        toolsDiv.className = 'tools-info';
-        
-        let toolsHtml = '<div class="tools-info-header">🔧 使用的工具</div>';
-        
-        toolsCalled.forEach((tool, index) => {
-            const result = toolsResults && toolsResults[index];
-            const toolId = `share-tool-${Date.now()}-${index}`;
-            
-            let statusIcon = '';
-            let statusText = '';
-            let resultSection = '';
-            
-            if (result && result.success) {
-                statusIcon = '✅';
-                statusText = '执行成功';
-                
-                // 添加结果显示
-                if (result.result) {
-                    const resultContent = this.formatToolResult(result.result);
-                    const resultLength = result.result.length;
-                    const resultSizeText = this.formatDataSize(resultLength);
-                    const isLongContent = resultLength > 200;
-                    
-                    resultSection = `
-                        <div class="tool-result-header">
-                            <span class="tool-result-size">${resultSizeText}</span>
-                            ${isLongContent ? `
-                                <button class="tool-result-toggle" onclick="shareApp.toggleToolResult('${toolId}')">
-                                    <span class="toggle-icon">▶</span>
-                                    <span>展开</span>
-                                </button>
-                            ` : ''}
-                        </div>
-                        <div class="tool-result-content ${isLongContent ? 'collapsed' : ''}">
-                            ${resultContent}
-                        </div>
-                    `;
-                }
-            } else if (result && !result.success) {
-                statusIcon = '❌';
-                statusText = '执行失败';
-                resultSection = `<div class="tool-result-content error-text">${this.escapeHtml(result.error || '未知错误')}</div>`;
-            } else {
-                statusIcon = '⏳';
-                statusText = '无结果';
-            }
-            
-            toolsHtml += `
-                <div class="tool-item" id="${toolId}">
-                    <div class="tool-header">
-                        <div class="tool-icon">${statusIcon}</div>
-                        <div class="tool-info">
-                            <div class="tool-name">${this.escapeHtml(tool.tool_name || '未知工具')}</div>
-                            <div class="tool-status">${statusText}</div>
-                        </div>
-                    </div>
-                    ${resultSection}
-                </div>
-            `;
-        });
-        
-        toolsDiv.innerHTML = toolsHtml;
-        this.chatMessages.appendChild(toolsDiv);
+    scrollToBottom() {
+        // 分享页面通常不需要像聊天窗口那样持续滚动到底部，
+        // 但 ThinkingFlow 模块需要这个方法存在。
+        // 可以留空或添加一个轻微的滚动行为。
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
+
+    reproduceThinkingFlow(record) {
+        // 1. 创建思维流
+        this.thinkingFlow.createThinkingFlow();
+
+        // 2. 更新分析阶段
+        this.thinkingFlow.updateThinkingStage('analyzing', 'AI 正在分析', '已完成分析，准备执行工具。');
+
+        // 3. 计划工具
+        const toolCount = record.mcp_tools_called.length;
+        this.thinkingFlow.updateThinkingStage(
+            'tools_planned',
+            `决定使用 ${toolCount} 个工具`,
+            '工具已执行。',
+            { toolCount: toolCount }
+        );
+
+        // 4. 添加并完成每个工具
+        record.mcp_tools_called.forEach((tool, index) => {
+            const result = record.mcp_results && record.mcp_results[index];
+            const toolData = {
+                tool_id: `${record.id}-${index}`,
+                tool_name: tool.tool_name,
+                result: result ? result.result : '',
+                error: result ? result.error : ''
+            };
+
+            this.thinkingFlow.addToolToThinking(toolData);
+            const status = result && result.success ? 'completed' : 'error';
+            this.thinkingFlow.updateToolInThinking(toolData, status);
+        });
+
+        // 5. 完成思维流
+        this.thinkingFlow.completeThinkingFlow('success');
+        
+        // 6. 默认折叠思维链
+        const currentFlow = this.thinkingFlow.getCurrentFlow();
+        if (currentFlow) {
+            this.thinkingFlow.toggleThinkingFlow(currentFlow.id, true);
+        }
+    }
+
+
     
     formatTimestamp(timestamp) {
         if (!timestamp) return '';
@@ -467,32 +451,11 @@ class ShareApp {
         }
     }
     
-    // 切换工具结果显示状态
-    toggleToolResult(toolId) {
-        const toolDiv = document.getElementById(toolId);
-        if (!toolDiv) return;
-
-        const content = toolDiv.querySelector('.tool-result-content');
-        if (!content) return;
-        
-        const toggleButton = toolDiv.querySelector('.tool-result-toggle');
-        if (!toggleButton) return;
-
-        const toggleIcon = toggleButton.querySelector('.toggle-icon');
-        const toggleText = toggleButton.querySelector('span:last-child');
-        
-        // 切换折叠状态
-        content.classList.toggle('collapsed');
-        const isNowCollapsed = content.classList.contains('collapsed');
-
-        if (isNowCollapsed) {
-            toggleIcon.textContent = '▶';
-            toggleText.textContent = '展开';
-        } else {
-            toggleIcon.textContent = '▼';
-            toggleText.textContent = '收起';
-        }
+    // 暴露给全局，以便onclick可以调用
+    toggleThinkingFlow(flowId, forceCollapse = false) {
+        this.thinkingFlow.toggleThinkingFlow(flowId, forceCollapse);
     }
+
     
     // 格式化数据大小显示
     formatDataSize(bytes) {
@@ -659,3 +622,6 @@ class ShareApp {
 
 // 实例化并初始化
 const shareApp = new ShareApp();
+
+// 将 ShareApp 的方法暴露到全局，以便 HTML 中的 onclick 可以调用
+window.shareApp = shareApp;

@@ -22,8 +22,6 @@ MODEL_CONFIG = {
     "temperature": 0.2,
     "timeout": 60
 }
-
-
 # ─────────── 2. MCP配置管理 ───────────
 class MCPConfig:
     """MCP配置管理"""
