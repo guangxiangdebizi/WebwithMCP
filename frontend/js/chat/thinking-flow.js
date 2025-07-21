@@ -121,8 +121,9 @@ class ThinkingFlow {
     addToolToThinking(data) {
         if (!this.currentThinkingFlow) return;
 
-        const toolsContainer = this.currentThinkingFlow.querySelector('.tools-container');
-        if (!toolsContainer) return;
+        const toolsContainers = this.currentThinkingFlow.querySelectorAll('.tools-container');
+        if (toolsContainers.length === 0) return;
+        const toolsContainer = toolsContainers[toolsContainers.length - 1];
 
         const toolDiv = document.createElement('div');
         toolDiv.className = 'thinking-tool executing';
@@ -206,8 +207,9 @@ class ThinkingFlow {
     checkAllToolsCompleted() {
         if (!this.currentThinkingFlow) return;
 
-        const toolsContainer = this.currentThinkingFlow.querySelector('.tools-container');
-        if (!toolsContainer) return;
+        const toolsContainers = this.currentThinkingFlow.querySelectorAll('.tools-container');
+        if (toolsContainers.length === 0) return;
+        const toolsContainer = toolsContainers[toolsContainers.length - 1];
 
         const allTools = toolsContainer.querySelectorAll('.thinking-tool');
         const completedTools = toolsContainer.querySelectorAll('.thinking-tool.completed, .thinking-tool.error');

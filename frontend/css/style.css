@@ -154,6 +154,10 @@ body {
     scroll-behavior: smooth;
 }
 
+.chat-messages:has(.welcome-message:not([style*="display: none"])) {
+    justify-content: center;
+}
+
 /* 欢迎消息 */
 .welcome-message {
     text-align: center;
@@ -606,7 +610,7 @@ body {
 /* 输入区域 - 修复布局 */
 .chat-input-container {
     flex-shrink: 0;
-    padding: 1.5rem 0 2rem 0;
+    padding: 0.75rem 0 1rem 0;
     /* 确保输入区域始终可见 */
     background: transparent;
 }
@@ -614,10 +618,8 @@ body {
 .chat-input-wrapper {
     background: white;
     border-radius: 1rem;
-    padding: 1rem;
-    display: flex;
-    align-items: flex-end;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    position: relative;
     border: 1px solid #e2e8f0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     /* 确保输入框容器不会被压缩 */
@@ -631,7 +633,8 @@ body {
 }
 
 #messageInput {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0; /* Fix flexbox overflow */
     border: none;
     background: transparent;
     resize: none;
@@ -640,7 +643,9 @@ body {
     min-height: 1.5rem;
     /* 限制最大高度，避免输入框过大 */
     max-height: 120px;
-    padding: 0.5rem 0;
+    padding: 0;
+    width: 100%;
+    padding-right: 56px; /* space for button */
     font-family: inherit;
     color: #2d3748;
     /* 确保长文本可以正确换行 */
@@ -670,10 +675,9 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    flex-shrink: 0;
-    /* 确保按钮不会变形 */
-    min-width: 44px;
-    min-height: 44px;
+    position: absolute;
+    right: 1rem;
+    bottom: 0.75rem;
 }
 
 .send-btn:hover:not(:disabled) {
@@ -1434,4 +1438,4 @@ body {
         width: 0px;
         background: transparent;
     }
-} 
+}
