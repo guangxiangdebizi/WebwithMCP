@@ -399,6 +399,38 @@ async def get_database_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取数据库统计失败: {str(e)}")
 
+@app.get("/api/share/{session_id}")
+async def get_shared_chat(session_id: str, limit: int = 100):
+    """获取分享的聊天记录（只读）"""
+    if not chat_db:
+        raise HTTPException(status_code=503, detail="数据库未初始化")
+    
+    try:
+        # 获取指定会话的聊天历史
+        records = await chat_db.get_chat_history(
+            session_id=session_id, 
+            limit=limit
+        )
+        
+        if not records:
+            raise HTTPException(status_code=404, detail="未找到该会话的聊天记录")
+        
+        # 获取会话统计信息
+        stats = await chat_db.get_stats()
+        
+        return {
+            "success": True,
+            "data": records,
+            "session_id": session_id,
+            "total_records": len(records),
+            "shared_at": datetime.now().isoformat(),
+            "readonly": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取分享聊天记录失败: {str(e)}")
+
 # ─────────── 静态文件服务（可选） ───────────
 
 # 如果要让FastAPI直接服务前端文件，取消下面的注释

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分享的对话 - MCP Web 智能助手</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- 引入marked.js用于markdown解析 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">🔗 分享的对话</h1>
+                <div class="header-actions">
+                    <div class="share-info-badge">
+                        <span class="readonly-badge">只读模式</span>
+                    </div>
+                    <a href="index.html" class="btn btn-primary">开始新对话</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 加载状态 -->
+            <div id="loadingOverlay" class="loading-overlay">
+                <div>正在加载分享的对话...</div>
+            </div>
+
+            <!-- 聊天消息区域 -->
+            <div class="chat-messages" id="chatMessages">
+                <!-- 消息将通过JavaScript动态加载 -->
+            </div>
+
+            <!-- 分享信息栏 -->
+            <div class="share-footer">
+                <div class="share-footer-content">
+                    <p>📢 这是一个分享的对话记录，您只能查看内容，无法继续对话。</p>
+                    <p>想要开始自己的对话？<a href="index.html">点击这里</a></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 引入配置管理器 -->
+    <script src="js/config.js"></script>
+    <script src="js/share.js"></script>
+    <script>
+        // 初始化分享应用
+        document.addEventListener('DOMContentLoaded', () => {
+            window.shareApp = new ShareApp();
+        });
+    </script>
+
+    <style>
+        /* 分享页面特定样式 */
+        .readonly-badge {
+            background: #ed8936;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .share-footer {
+            background: #f7fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 1rem;
+            margin-top: auto;
+        }
+        
+        .share-footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+            color: #718096;
+        }
+        
+        .share-footer-content p {
+            margin: 0.5rem 0;
+        }
+        
+        .share-footer-content a {
+            color: #4299e1;
+            text-decoration: none;
+        }
+        
+        .share-footer-content a:hover {
+            text-decoration: underline;
+        }
+        
+        /* 确保主容器占满高度 */
+        .app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 固定header到顶部 - 使用!important确保优先级 */
+        .header {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 1000 !important;
+            background: white !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            padding: 1rem 2rem !important;
+            flex-shrink: 0 !important;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-top: 80px; /* 为固定header留出空间 */
+            margin-bottom: 100px; /* 为固定footer留出空间 */
+            height: calc(100vh - 180px); /* 设置固定高度 */
+            overflow: hidden;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem;
+            height: 100%; /* 占满父容器 */
+            -webkit-overflow-scrolling: touch; /* 移动端滚动优化 */
+        }
+        
+        /* 固定footer到底部 - 使用!important确保优先级 */
+        .share-footer {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 1000 !important;
+            background: #f7fafc !important;
+            border-top: 1px solid #e2e8f0 !important;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1) !important;
+            padding: 1rem !important;
+            margin-top: auto !important;
+        }
+        
+        /* 错误状态样式 */
+        .error-message {
+            text-align: center;
+            padding: 2rem;
+            color: #e53e3e;
+        }
+        
+        .error-message h2 {
+            margin-bottom: 1rem;
+        }
+        
+        .error-message p {
+            margin-bottom: 0.5rem;
+            color: #718096;
+        }
+        
+        /* 空状态样式 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #718096;
+        }
+        
+        .empty-state h2 {
+            margin-bottom: 1rem;
+            color: #4a5568;
+        }
+        
+        .empty-state .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</body>
+</html>

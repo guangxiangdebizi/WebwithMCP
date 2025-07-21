@@ -71,6 +71,9 @@ class ChatApp {
             this.clearChat();
         });
         
+        // 初始化分享模块
+        this.shareModule = new ShareModule(this);
+        
         // 页面卸载时关闭连接
         window.addEventListener('beforeunload', () => {
             this.wsManager.close();
