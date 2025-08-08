@@ -54,18 +54,20 @@ cd backend
 pip install -r requirements.txt
 ```
 
-#### Configure API Key
+#### Configure API Key and Model (via .env)
 
-Edit the `MODEL_CONFIG` section in `backend/mcp_agent.py`:
+Create a `.env` in project root (or copy `.env.example` to `.env`) and fill:
 
-```python
-MODEL_CONFIG = {
-    "api_key": "your-api-key-here",        # Replace with your API key
-    "base_url": "https://api.deepseek.com/v1",  # API service URL
-    "model_name": "deepseek-chat",              # Model name
-    "temperature": 0.2,
-    "timeout": 60
-}
+```env
+# OpenAI/compatible API configuration
+OPENAI_API_KEY=your-api-key-here
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+OPENAI_MODEL=deepseek-chat
+OPENAI_TEMPERATURE=0.2
+OPENAI_TIMEOUT=60
+
+# Backend port (optional, defaults to 8003, align with frontend)
+BACKEND_PORT=8003
 ```
 
 #### Configure MCP Servers (Optional)
@@ -95,13 +97,13 @@ Edit `frontend/config.json` to configure backend address:
 {
   "backend": {
     "host": "localhost",
-    "port": 8000,
+    "port": 8003,
     "protocol": "http",
     "wsProtocol": "ws"
   },
   "api": {
-    "baseUrl": "http://localhost:8000",
-    "wsUrl": "ws://localhost:8000"
+    "baseUrl": "http://localhost:8003",
+    "wsUrl": "ws://localhost:8003"
   }
 }
 ```
@@ -112,7 +114,7 @@ Edit `frontend/config.json` to configure backend address:
 
 ```bash
 cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8003
 ```
 
 #### Access Frontend
@@ -214,7 +216,7 @@ The intelligent assistant automatically identifies tools to call:
 
 ```bash
 # Backend development mode
-cd backend && uvicorn main:app --reload --port 8000
+cd backend && uvicorn main:app --reload --port 8003
 
 # Frontend development server
 cd frontend && python -m http.server 3000
@@ -232,8 +234,8 @@ WORKDIR /app
 COPY backend/ .
 RUN pip install -r requirements.txt
 
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8003
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
 ```
 
 #### Using Nginx Reverse Proxy
@@ -251,14 +253,14 @@ server {
     
     # Backend API
     location /api/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8003;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
     
     # WebSocket
     location /ws/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8003;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

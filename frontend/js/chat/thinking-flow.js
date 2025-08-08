@@ -25,21 +25,120 @@ class ThinkingFlow {
             </div>
             <div class="thinking-flow-content">
                 <div class="thinking-stages">
-                    <div class="thinking-stage active" data-stage="thinking">
-                        <div class="stage-icon">
-                            <div class="thinking-spinner"></div>
-                        </div>
-                        <div class="stage-content">
-                            <div class="stage-title">正在分析问题</div>
-                            <div class="stage-detail">理解用户需求，制定解决方案...</div>
-                        </div>
-                    </div>
+                    <!-- 移除硬编码的初始阶段，让动态内容自然填充 -->
                 </div>
             </div>
         `;
         
         this.appInstance.chatMessages.appendChild(flowDiv);
         this.currentThinkingFlow = flowDiv;
+        this.appInstance.scrollToBottom();
+    }
+
+    // 开始AI思考内容的流式显示
+    startThinkingContent(iteration = null) {
+        if (!this.currentThinkingFlow) return;
+
+        const stagesContainer = this.currentThinkingFlow.querySelector('.thinking-stages');
+        
+        // 完成当前活跃阶段
+        const activeStage = stagesContainer.querySelector('.thinking-stage.active');
+        if (activeStage) {
+            activeStage.classList.remove('active');
+            activeStage.classList.add('completed');
+            const spinner = activeStage.querySelector('.thinking-spinner');
+            if (spinner) {
+                spinner.outerHTML = '<span class="stage-check">✓</span>';
+            }
+        }
+
+        // 创建新的AI思考阶段
+        const thinkingStageId = `thinking-${iteration || Date.now()}`;
+        const thinkingStage = document.createElement('div');
+        thinkingStage.className = 'thinking-stage active';
+        thinkingStage.setAttribute('data-stage', thinkingStageId);
+        
+        const stageTitle = iteration ? `第${iteration}轮推理` : 'AI 分析思考';
+        
+        thinkingStage.innerHTML = `
+            <div class="stage-icon">
+                <div class="thinking-spinner"></div>
+            </div>
+            <div class="stage-content">
+                <div class="stage-title">${stageTitle}</div>
+                <div class="stage-detail">正在分析和制定解决方案...</div>
+                <div class="thinking-content">
+                    <div class="ai-thinking-text">
+                        <span class="thinking-cursor">▋</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        stagesContainer.appendChild(thinkingStage);
+        
+        // 存储当前思考阶段的累积内容
+        this.currentThinkingContent = this.currentThinkingContent || {};
+        this.currentThinkingContent[thinkingStageId] = '';
+
+        this.appInstance.scrollToBottom();
+    }
+    
+    // 增量添加AI思考内容
+    appendThinkingContent(content, iteration = null) {
+        if (!this.currentThinkingFlow) return;
+
+        const thinkingStageId = `thinking-${iteration || Date.now()}`;
+        const thinkingStage = this.currentThinkingFlow.querySelector(`[data-stage="${thinkingStageId}"]`);
+        
+        if (!thinkingStage) return;
+
+        // 累积内容
+        this.currentThinkingContent = this.currentThinkingContent || {};
+        this.currentThinkingContent[thinkingStageId] = (this.currentThinkingContent[thinkingStageId] || '') + content;
+        
+        // 更新显示
+        const thinkingTextDiv = thinkingStage.querySelector('.ai-thinking-text');
+        if (thinkingTextDiv) {
+            // 渲染markdown（使用累积内容）
+            let renderedContent;
+            try {
+                if (typeof marked !== 'undefined') {
+                    renderedContent = marked.parse(this.currentThinkingContent[thinkingStageId]);
+                } else {
+                    renderedContent = this.appInstance.escapeHtml(this.currentThinkingContent[thinkingStageId]);
+                }
+            } catch (error) {
+                renderedContent = this.appInstance.escapeHtml(this.currentThinkingContent[thinkingStageId]);
+            }
+            
+            // 保持光标并更新内容
+            thinkingTextDiv.innerHTML = renderedContent + '<span class="thinking-cursor">▋</span>';
+        }
+
+        this.appInstance.scrollToBottom();
+    }
+    
+    // 结束AI思考内容显示
+    endThinkingContent(iteration = null) {
+        if (!this.currentThinkingFlow) return;
+
+        const thinkingStageId = `thinking-${iteration || Date.now()}`;
+        const thinkingStage = this.currentThinkingFlow.querySelector(`[data-stage="${thinkingStageId}"]`);
+        
+        if (!thinkingStage) return;
+
+        // 移除光标
+        const cursor = thinkingStage.querySelector('.thinking-cursor');
+        if (cursor) {
+            cursor.remove();
+        }
+        
+        // 清理累积内容
+        if (this.currentThinkingContent && this.currentThinkingContent[thinkingStageId]) {
+            delete this.currentThinkingContent[thinkingStageId];
+        }
+
         this.appInstance.scrollToBottom();
     }
 

@@ -1339,6 +1339,60 @@ body {
     color: #718096;
 }
 
+/* AI思考内容样式 */
+.thinking-content {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(116, 162, 251, 0.05);
+    border: 1px solid rgba(116, 162, 251, 0.15);
+    border-radius: 0.5rem;
+    border-left: 3px solid #74a2fb;
+}
+
+.ai-thinking-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #4a5568;
+    margin-bottom: 0.5rem;
+}
+
+.ai-thinking-text:last-child {
+    margin-bottom: 0;
+}
+
+.ai-thinking-text p {
+    margin: 0 0 0.5rem 0;
+}
+
+.ai-thinking-text p:last-child {
+    margin-bottom: 0;
+}
+
+.ai-thinking-text code {
+    background: rgba(116, 162, 251, 0.1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+.ai-thinking-text strong {
+    color: #2d3748;
+    font-weight: 600;
+}
+
+/* 思考光标样式 */
+.thinking-cursor {
+    color: #74a2fb;
+    animation: blink 1s infinite;
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
 .tool-result-header {
     display: flex;
     justify-content: space-between;

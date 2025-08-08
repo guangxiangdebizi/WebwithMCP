@@ -16,6 +16,7 @@
 - 📊 **对话历史**: SQLite数据库存储完整对话记录
 - 🎨 **现代UI**: 响应式设计，支持Markdown渲染
 - ⚙️ **灵活配置**: 支持多环境部署配置
+- 📖 **技术文档**: 详细的[MCP业务层构建指南](MCP业务层构建指南.md)
 
 ## 🏗️ 技术架构
 
@@ -56,18 +57,20 @@ cd backend
 pip install -r requirements.txt
 ```
 
-#### 配置API密钥
+#### 配置API密钥与模型（使用 .env）
 
-编辑 `backend/mcp_agent.py` 文件中的 `MODEL_CONFIG` 部分：
+在项目根目录创建 `.env`（或复制 `.env.example` 为 `.env`）并填写：
 
-```python
-MODEL_CONFIG = {
-    "api_key": "your-api-key-here",        # 替换为您的API密钥
-    "base_url": "https://api.deepseek.com/v1",  # API服务地址
-    "model_name": "deepseek-chat",              # 模型名称
-    "temperature": 0.2,
-    "timeout": 60
-}
+```env
+# OpenAI/兼容接口配置
+OPENAI_API_KEY=your-api-key-here
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+OPENAI_MODEL=deepseek-chat
+OPENAI_TEMPERATURE=0.2
+OPENAI_TIMEOUT=60
+
+# 后端端口（可选，默认8003，与前端配置保持一致）
+BACKEND_PORT=8003
 ```
 
 #### 配置MCP服务器 (可选)
@@ -97,13 +100,13 @@ MODEL_CONFIG = {
 {
   "backend": {
     "host": "localhost",
-    "port": 8000,
+    "port": 8003,
     "protocol": "http",
     "wsProtocol": "ws"
   },
   "api": {
-    "baseUrl": "http://localhost:8000",
-    "wsUrl": "ws://localhost:8000"
+    "baseUrl": "http://localhost:8003",
+    "wsUrl": "ws://localhost:8003"
   }
 }
 ```
@@ -114,7 +117,7 @@ MODEL_CONFIG = {
 
 ```bash
 cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8003
 ```
 
 #### 访问前端
@@ -215,7 +218,7 @@ WebwithMCP/
 
 ```bash
 # 后端开发模式
-cd backend && uvicorn main:app --reload --port 8000
+cd backend && uvicorn main:app --reload --port 8003
 
 # 前端开发服务器
 cd frontend && python -m http.server 3000
@@ -233,8 +236,8 @@ WORKDIR /app
 COPY backend/ .
 RUN pip install -r requirements.txt
 
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8003
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
 ```
 
 #### 使用Nginx反向代理
@@ -252,14 +255,14 @@ server {
     
     # 后端API
     location /api/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8003;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
     
     # WebSocket
     location /ws/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8003;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -329,4 +332,4 @@ async def your_custom_function(self):
 
 ---
 
-⭐ 如果这个项目对您有帮助，请给它一个星标！ 
+⭐ 如果这个项目对您有帮助，请给它一个星标！

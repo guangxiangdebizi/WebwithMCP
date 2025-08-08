@@ -127,9 +127,22 @@ class ChatApp {
                 break;
                 
             case 'status':
-                if (data.content?.includes('分析')) {
-                    this.thinkingFlow.updateThinkingStage('analyzing', 'AI 正在分析', data.content);
-                }
+                // 移除硬编码的status处理，让AI思考内容自然显示
+                break;
+                
+            case 'ai_thinking_start':
+                // 开始AI思考流式显示
+                this.thinkingFlow.startThinkingContent(data.iteration);
+                break;
+                
+            case 'ai_thinking_chunk':
+                // AI思考内容片段
+                this.thinkingFlow.appendThinkingContent(data.content, data.iteration);
+                break;
+                
+            case 'ai_thinking_end':
+                // 结束AI思考
+                this.thinkingFlow.endThinkingContent(data.iteration);
                 break;
                 
             case 'tool_plan':

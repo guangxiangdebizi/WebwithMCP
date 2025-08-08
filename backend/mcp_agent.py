@@ -1,4 +1,3 @@
-# mcp_agent.py
 """
 MCP智能体封装 - 为Web后端使用
 基于 test.py 中的 SimpleMCPAgent，优化为适合WebSocket流式推送的版本
@@ -11,18 +10,12 @@ from typing import Dict, List, Any, AsyncGenerator
 from pathlib import Path
 from datetime import datetime, timedelta
 
+from dotenv import load_dotenv, find_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
-# ─────────── 1. 大模型配置 ───────────
-MODEL_CONFIG = {
-    "api_key": "your_api_key",  # ← 改为您的API Key
-    "base_url": "your_base_url",  # ← 改为您的API地址
-    "model_name": "your_model_name",  # ← 改为您的模型名称
-    "temperature": 0.2,
-    "timeout": 60
-}
-# ─────────── 2. MCP配置管理 ───────────
+
+# ─────────── 1. MCP配置管理 ───────────
 class MCPConfig:
     """MCP配置管理"""
 
@@ -67,24 +60,52 @@ class WebMCPAgent:
         self.tools_by_server = {}
         self.server_configs = {}
 
-        # 设置API环境变量
-        os.environ["OPENAI_API_KEY"] = MODEL_CONFIG["api_key"]
-        os.environ["OPENAI_BASE_URL"] = MODEL_CONFIG["base_url"]
+        # 加载 .env 并设置API环境变量（不覆盖已存在的环境变量）
+        try:
+            load_dotenv(find_dotenv(), override=False)
+        except Exception:
+            # 忽略 .env 加载错误，继续从系统环境读取
+            pass
+
+        # 从环境变量读取配置
+        self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.base_url = os.getenv("OPENAI_BASE_URL", "").strip()
+        self.model_name = os.getenv("OPENAI_MODEL", os.getenv("OPENAI_MODEL_NAME", "deepseek-chat")).strip()
+
+        # 数值配置，带默认
+        try:
+            self.temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+        except Exception:
+            self.temperature = 0.2
+        try:
+            self.timeout = int(os.getenv("OPENAI_TIMEOUT", "60"))
+        except Exception:
+            self.timeout = 60
+
+        # 将关键配置同步到环境（供底层SDK使用），不覆盖外部已设值
+        if self.api_key and not os.getenv("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = self.api_key
+        if self.base_url and not os.getenv("OPENAI_BASE_URL"):
+            os.environ["OPENAI_BASE_URL"] = self.base_url
 
     async def initialize(self):
         """初始化智能体"""
         try:
             # 初始化大模型
+            if not os.getenv("OPENAI_API_KEY"):
+                raise RuntimeError("缺少 OPENAI_API_KEY，请在 .env 或系统环境中配置")
+
+            # ChatOpenAI 支持从环境变量读取 base_url
             self.llm = ChatOpenAI(
-                model_name=MODEL_CONFIG["model_name"],
-                temperature=MODEL_CONFIG["temperature"],
-                request_timeout=MODEL_CONFIG["timeout"],
+                model=self.model_name,
+                temperature=self.temperature,
+                timeout=self.timeout,
                 max_retries=3,
             )
 
             # 加载MCP配置并连接
             mcp_config = self.config.load_config()
-            self.server_configs = mcp_config["servers"]
+            self.server_configs = mcp_config.get("servers", {})
 
             if not self.server_configs:
                 print("❌ 没有配置MCP服务器")
@@ -98,9 +119,13 @@ class WebMCPAgent:
             
             for server_name, server_config in self.server_configs.items():
                 try:
-                    print(f"🧪 测试连接到 {server_name}: {server_config['url']}")
+                    url = server_config.get('url')
+                    if not url:
+                        print(f"⚠️ 服务器 {server_name} 缺少 url 配置，跳过连接测试")
+                        continue
+                    print(f"🧪 测试连接到 {server_name}: {url}")
                     async with aiohttp.ClientSession() as session:
-                        async with session.get(server_config['url'], timeout=aiohttp.ClientTimeout(total=10)) as response:
+                        async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                             print(f"✅ {server_name} 连接测试成功 (状态: {response.status})")
                 except Exception as test_e:
                     print(f"⚠️ {server_name} 连接测试失败: {test_e}")
@@ -118,7 +143,10 @@ class WebMCPAgent:
 
             # 更新服务器配置以使用自定义的httpx客户端工厂
             for server_name in self.server_configs:
-                self.server_configs[server_name]['httpx_client_factory'] = http_client_factory
+                # 避免污染原配置对象，复制后添加工厂
+                server_cfg = dict(self.server_configs[server_name])
+                server_cfg['httpx_client_factory'] = http_client_factory
+                self.server_configs[server_name] = server_cfg
 
             self.mcp_client = MultiServerMCPClient(self.server_configs)
 
@@ -211,7 +239,7 @@ class WebMCPAgent:
 
                 yield {"type": "status", "content": f"第 {iteration} 轮推理..."}
 
-                # 调用大模型进行推理
+                # 调用大模型进行推理（保持原有逻辑）
                 try:
                     print(f"🧠 第 {iteration} 轮推理开始...")
                     response = await self.llm.ainvoke(messages)
@@ -224,7 +252,34 @@ class WebMCPAgent:
                     }
                     return
 
-                # 检查是否有工具调用
+                # 流式显示AI思考内容（新增功能）
+                if response.content:
+                    # 开始AI思考
+                    yield {
+                        "type": "ai_thinking_start",
+                        "iteration": iteration
+                    }
+
+                    # 重新流式生成思考内容（真流式）
+                    thinking_content = ""
+                    async for chunk in self.llm.astream(messages):
+                        if hasattr(chunk, 'content') and chunk.content:
+                            content = chunk.content
+                            thinking_content += content
+                            yield {
+                                "type": "ai_thinking_chunk",
+                                "content": content,
+                                "iteration": iteration
+                            }
+
+                    # 结束AI思考
+                    yield {
+                        "type": "ai_thinking_end",
+                        "content": thinking_content,
+                        "iteration": iteration
+                    }
+
+                # 检查是否有工具调用（保持原有逻辑）
                 if hasattr(response, 'tool_calls') and response.tool_calls:
                     print(f"🔧 检测到 {len(response.tool_calls)} 个工具调用")
                     yield {
@@ -236,7 +291,7 @@ class WebMCPAgent:
                     # 串行执行每个工具调用
                     for i, tool_call in enumerate(response.tool_calls, 1):
                         tool_name = tool_call['name']
-                        tool_args = tool_call['args']
+                        tool_args = tool_call.get('args', {})
                         tool_id = tool_call.get('id', f"call_{i}")
 
                         print(f"🔧 执行工具 {i}/{len(response.tool_calls)}: {tool_name}")
@@ -308,25 +363,30 @@ class WebMCPAgent:
                     continue
 
                 else:
-                    # 没有工具调用，这是最终回复
-                    final_response = response.content or ""
-                    print(f"💬 生成最终回复，长度: {len(final_response)}")
+                    # 没有工具调用 - 这是最终回复，不显示在思维流中
+                    # 确保 thinking_content 已定义
+                    try:
+                        tc_len = len(thinking_content)  # 可能未定义
+                    except Exception:
+                        tc_len = 0
+                    print(f"💬 当前内容为最终回复，长度: {tc_len}")
 
-                    # 流式推送最终回复
+                    # 发送最终回复开始信号
                     yield {
-                        "type": "ai_response_start",
-                        "content": "AI正在整理回复..."
+                        "type": "ai_response_start",  
+                        "content": "AI正在回复..."
                     }
 
-                    # 模拟流式输出（可根据需要调整）
-                    chunk_size = 10
-                    for i in range(0, len(final_response), chunk_size):
-                        chunk = final_response[i:i + chunk_size]
-                        yield {
-                            "type": "ai_response_chunk",
-                            "content": chunk
-                        }
-                        await asyncio.sleep(0.05)  # 小延迟模拟流式效果
+                    # 重新流式生成回复（因为上面已经用ainvoke获取了思考内容）
+                    final_response = ""
+                    async for chunk in self.llm.astream(messages):
+                        if hasattr(chunk, 'content') and chunk.content:
+                            content = chunk.content
+                            final_response += content
+                            yield {
+                                "type": "ai_response_chunk",
+                                "content": content
+                            }
 
                     yield {
                         "type": "ai_response_end",

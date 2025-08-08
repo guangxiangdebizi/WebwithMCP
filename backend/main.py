@@ -15,6 +15,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+import os
+from dotenv import load_dotenv, find_dotenv
 import uvicorn
 
 from mcp_agent import WebMCPAgent
@@ -60,6 +62,12 @@ async def lifespan(app: FastAPI):
     print("👋 MCP Web 智能助手已关闭")
 
 # 创建FastAPI应用
+# 预加载 .env（不覆盖系统变量）
+try:
+    load_dotenv(find_dotenv(), override=False)
+except Exception:
+    pass
+
 app = FastAPI(
     title="MCP Web智能助手",
     description="基于MCP的智能助手Web版",
@@ -206,6 +214,12 @@ async def websocket_chat(websocket: WebSocket):
                             
                             elif chunk_type == "ai_response_chunk":
                                 # 收集AI回复内容片段
+                                conversation_data["ai_response_parts"].append(
+                                    response_chunk.get("content", "")
+                                )
+                            
+                            elif chunk_type == "ai_thinking_chunk":
+                                # 收集AI思考内容片段到回复中
                                 conversation_data["ai_response_parts"].append(
                                     response_chunk.get("content", "")
                                 )
@@ -438,10 +452,15 @@ async def get_shared_chat(session_id: str, limit: int = 100):
 
 if __name__ == "__main__":
     # 开发环境启动
+    # 端口可通过环境变量 BACKEND_PORT 覆盖，默认 8003，与前端配置一致
+    try:
+        port = int(os.getenv("BACKEND_PORT", "8003"))
+    except Exception:
+        port = 8003
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8002,
+        port=port,
         reload=True,
         log_level="info"
     )

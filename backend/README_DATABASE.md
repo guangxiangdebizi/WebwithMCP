@@ -59,7 +59,7 @@ GET /api/database/stats
 
 1. **安装依赖**：
    ```bash
-   pip install aiosqlite sqlalchemy
+   pip install aiosqlite sqlalchemy python-dotenv
    ```
 
 2. **启动服务**：

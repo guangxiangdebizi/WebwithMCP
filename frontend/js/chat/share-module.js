@@ -15,7 +15,7 @@ class ShareModule {
     
     shareChat() {
         if (!this.chatApp.sessionId) {
-            this.chatApp.showError('无法分享', '当前没有活跃的对话会话');
+            this.chatApp.showError('无法分享：当前没有活跃的对话会话');
             return;
         }
         

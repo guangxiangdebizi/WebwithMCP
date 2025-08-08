@@ -103,7 +103,7 @@ class ShareApp {
                 
                 // 添加AI回复
                 if (record.ai_response) {
-                    this.addAIMessage(record.ai_response, record.ai_response_at);
+                    this.addAIMessage(record.ai_response, record.ai_timestamp || record.created_at);
                 }
             });
         });
