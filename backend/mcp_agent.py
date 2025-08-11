@@ -62,7 +62,7 @@ class WebMCPAgent:
 
         # 加载 .env 并设置API环境变量（不覆盖已存在的环境变量）
         try:
-            load_dotenv(find_dotenv(), override=False)
+            load_dotenv(find_dotenv(), override=True)
         except Exception:
             # 忽略 .env 加载错误，继续从系统环境读取
             pass
